@@ -1,10 +1,10 @@
 on:
   push:
     branches:
-    - main
+      - main
   pull_request:
     branches:
-    - main
+      - main
 
 jobs:
   k6_transpile_bundle_test:
@@ -25,4 +25,4 @@ jobs:
       - name: Run local k6 test
         uses: grafana/k6-action@v0.2.0
         with:
-          filename: dist/get-200-status-test.js
+          filename: dist/vote-spike-test.js
