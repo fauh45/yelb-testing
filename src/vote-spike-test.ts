@@ -1,6 +1,9 @@
 import { check, sleep } from "k6";
 import http from "k6/http";
 import { Options } from "k6/options";
+import ws from 'k6/ws';
+
+
 
 const SITE_BASE = "https://yelb-ui-fauh45.cloud.okteto.net/";
 const API_SUFFIX = "/api/";
@@ -61,6 +64,18 @@ export default () => {
       isJSONObject(r.body?.toString() || ""),
   });
   sleep(3);
+
+  const url = 'wss://yelb-ui-fauh45.cloud.okteto.net/api/ws';
+  const params = { tags: { my_tag: 'hello' } };
+
+  const res = ws.connect(url, params, function (socket) {
+    socket.on('open', () => console.log('connected'));
+    socket.on('message', (data) => console.log('Message received: ', data));
+    socket.on('close', () => console.log('disconnected'));
+  });
+
+  check(res, { 'status is 101': (r) => r && r.status === 101 });
+
 };
 
 export const handleSummary = (data: any) => {
@@ -69,3 +84,6 @@ export const handleSummary = (data: any) => {
     "./report/vote-spike-test.json": JSON.stringify(data),
   };
 };
+
+
+
