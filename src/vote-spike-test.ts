@@ -1,9 +1,10 @@
 import { check, sleep } from "k6";
 import http from "k6/http";
 import { Options } from "k6/options";
-import ws from 'k6/ws';
+import ws from "k6/ws";
 
-
+// @ts-expect-error
+import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
 
 const SITE_BASE = "https://yelb-ui-fauh45.cloud.okteto.net/";
 const API_SUFFIX = "/api/";
@@ -49,41 +50,42 @@ export default () => {
       r.html().find("head title").text() === "Yelb",
   });
 
+  const res = ws.connect(
+    SITE_BASE.replace(/(http)(s)?\:\/\//, "ws$2://") + "/socket/websocket",
+    {},
+    function (socket) {
+      socket.on("open", () => console.log("connected"));
+      socket.on("message", (data) => console.log("Message received: ", data));
+      socket.on("close", () => console.log("disconnected"));
+    }
+  );
+
+  check(res, { "status is 101": (r) => r && r.status === 101 });
+
   sleep(1);
 
-  const voteResponse = http.get(SITE_BASE + API_SUFFIX + chooseRandomChoice());
+  const voteResponse = http.post(
+    SITE_BASE + API_SUFFIX + "vote/" + chooseRandomChoice()
+  );
   check(voteResponse, {
     "vote response is 200": (r) => r.status === 200,
     "vote result is a valid number": (r) => isNumeric(r.body?.toString() || ""),
   });
 
-  const voteSummaryResponse = http.get(SITE_BASE + API_SUFFIX + "getvotes");
+  const voteSummaryResponse = http.get(SITE_BASE + API_SUFFIX + "votes");
   check(voteSummaryResponse, {
     "vote summary response is 200": (r) => r.status === 200,
     "vote summary is a valid JSON": (r) =>
       isJSONObject(r.body?.toString() || ""),
   });
+
   sleep(3);
-
-  const url = 'wss://yelb-ui-fauh45.cloud.okteto.net/api/ws';
-  const params = { tags: { my_tag: 'hello' } };
-
-  const res = ws.connect(url, params, function (socket) {
-    socket.on('open', () => console.log('connected'));
-    socket.on('message', (data) => console.log('Message received: ', data));
-    socket.on('close', () => console.log('disconnected'));
-  });
-
-  check(res, { 'status is 101': (r) => r && r.status === 101 });
-
 };
 
 export const handleSummary = (data: any) => {
   console.log("Preparing the end-of-test summary...");
   return {
+    stdout: textSummary(data, { indent: " ", enableColors: true }),
     "./report/vote-spike-test.json": JSON.stringify(data),
   };
 };
-
-
-
