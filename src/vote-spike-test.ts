@@ -43,9 +43,9 @@ const isJSONObject = (str: string) => {
   return false;
 };
 
-export default () => {
-  const handshake_error = new Counter("error_handshake");
+const handshake_error = new Counter("error_handshake");
 
+export default () => {
   const baseSiteResponse = http.get(SITE_BASE);
   check(baseSiteResponse, {
     "base site status is 200": (r) => r.status === 200,
