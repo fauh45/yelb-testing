@@ -5,6 +5,7 @@ import ws from "k6/ws";
 
 // @ts-expect-error
 import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
+import { Counter } from "k6/metrics";
 
 const SITE_BASE = "https://yelb-ui-fauh45.cloud.okteto.net/";
 const API_SUFFIX = "/api/";
@@ -43,6 +44,8 @@ const isJSONObject = (str: string) => {
 };
 
 export default () => {
+  const handshake_error = new Counter("error_handshake");
+
   const baseSiteResponse = http.get(SITE_BASE);
   check(baseSiteResponse, {
     "base site status is 200": (r) => r.status === 200,
@@ -50,17 +53,22 @@ export default () => {
       r.html().find("head title").text() === "Yelb",
   });
 
-  const res = ws.connect(
-    SITE_BASE.replace(/(http)(s)?\:\/\//, "ws$2://") + "/socket/websocket",
-    {},
-    function (socket) {
-      socket.on("open", () => console.log("connected"));
-      socket.on("message", (data) => console.log("Message received: ", data));
-      socket.on("close", () => console.log("disconnected"));
-    }
-  );
+  try {
+    const res = ws.connect(
+      SITE_BASE.replace(/(http)(s)?\:\/\//, "ws$2://") + "/socket/websocket",
+      {},
+      function (socket) {
+        socket.on("open", () => console.log("connected"));
+        socket.on("message", (data) => console.log("Message received: ", data));
+        socket.on("close", () => console.log("disconnected"));
+      }
+    );
 
-  check(res, { "status is 101": (r) => r && r.status === 101 });
+    check(res, { "status is 101": (r) => r && r.status === 101 });
+  } catch (e) {
+    console.error(e);
+    handshake_error.add(1);
+  }
 
   sleep(1);
 
